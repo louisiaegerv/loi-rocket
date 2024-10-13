@@ -1,101 +1,140 @@
-import Image from "next/image";
+"use client";
+import { DataTable } from "./data-table";
+import { columns, columnsFull } from "./columns";
+import { data, dataFull } from "./data";
+import { ListingFull, ListingRawData } from "./types";
+import { useState, useEffect } from "react";
 
-export default function Home() {
-  return (
-    <div className="grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20 font-[family-name:var(--font-geist-sans)]">
-      <main className="flex flex-col gap-8 row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="https://nextjs.org/icons/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="list-inside list-decimal text-sm text-center sm:text-left font-[family-name:var(--font-geist-mono)]">
-          <li className="mb-2">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] px-1 py-0.5 rounded font-semibold">
-              app/page.tsx
-            </code>
-            .
-          </li>
-          <li>Save and see your changes instantly.</li>
-        </ol>
+function processData(data: ListingFull[]) {
+  const ACQUISITION_STRATEGIES = [
+    "Subject To",
+    "Hybrid",
+    "Seller Financing",
+    "Other",
+    "Problem",
+  ];
 
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="https://nextjs.org/icons/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:min-w-44"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
-        </div>
-      </main>
-      <footer className="row-start-3 flex gap-6 flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="https://nextjs.org/icons/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="https://nextjs.org/icons/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="https://nextjs.org/icons/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
-    </div>
-  );
+  const APP_SETTINGS = {};
+
+  const EST_PROPERTY_VALUE = getEstPropValue(data[0]);
+  console.log(`EST_PROPERTY_VALUE: ${EST_PROPERTY_VALUE}`);
+
+  // Calculate Est. Cash to seller
+  // getEstCashToSeller()
+
+  // Calculate New Cash to seller
+  // Calculate Open Mortgage Balance
+  // Calculate
+  // Calculate
+  // Calculate
+  // Calculate
+  // Calculate
+  // Calculate
+  // Calculate
+  // Calculate
+  // Calculate
+
+  return data.map((item) => item);
+}
+
+function getEstPropValue(propData: ListingFull) {
+  //   Use the following values in order of availability to determine the estimated value of the property:
+
+  if (propData.listingPrice) {
+    // Option 1
+    //Listing Price (for those that are On-Market)
+    return propData.listingPrice;
+  } else if (propData.propLastSaleAmount && propData.propLastSaleDate) {
+    // Option 2
+    // Prop. Last Sale Amount x (1.03)^years since Prop. Last Sale Date (e.g., To estimate the appraised value of the property, we can multiply the Prop. Last Sale Amount by (1 + 0.03)^n, where n is the number of years since the Prop. Last Sale Date. This assumes a consistent annual appreciation rate of 3%.)
+    const currentDate = new Date();
+    const yearsSinceLastSale =
+      currentDate.getFullYear() -
+      new Date(propData.propLastSaleDate).getFullYear();
+    const appreciationRate = 1.03;
+    const LAST_SALE_AMOUNT_ADJUSTED =
+      propData.propLastSaleAmount *
+      Math.pow(appreciationRate, yearsSinceLastSale);
+    console.log(`LAST_SALE_AMOUNT_ADJUSTED: ${LAST_SALE_AMOUNT_ADJUSTED}`);
+    return LAST_SALE_AMOUNT_ADJUSTED;
+  } else if (propData.propEstValue) {
+    // Prop. Est. Value
+    console.log(`PROP_EST_VALUE: ${propData.propEstValue}`);
+    return propData.propEstValue;
+  }
+
+  const PROP_EST_MARKET_VALUE_1 = propData.propEstMarketValue;
+  console.log(`PROP_EST_MARKET_VALUE_1: ${PROP_EST_MARKET_VALUE_1}`);
+
+  // Prop. Est. Market Value = Prop. Est. Market Imprv. Value + Prop. Est. Market Land Value
+  const PROP_EST_MARKET_VALUE_2 =
+    propData.propEstMarketImprvValue + propData.propEstMarketLandValue;
+  console.log(`PROP_EST_MARKET_VALUE_2: ${PROP_EST_MARKET_VALUE_2}`);
+
+  // Prop. Assessed Total Value = Prop. Assessed Imprv. Value + Prop. Assessed Land Value
+  const PROP_ASSESSED_TOTAL_VALUE =
+    propData.propAssessedImprvValue + propData.propAssessedLandValue;
+  console.log(`PROP_ASSESSED_TOTAL_VALUE: ${PROP_ASSESSED_TOTAL_VALUE}`);
+
+  return LISTING_PRICE;
+}
+
+// Calculate Est. Cash to seller
+function getEstCashToSeller() {
+  // Est. Prop Value - Est. Mortgage Balance - Est. Other Debt Balance - Est. Agent Fee - Est. Closing Costs
+}
+
+function acquisitionStrategyFormula(getCell) {
+  return `=IF(AND(${getCell("Est. Cash To Seller")} > ${getCell(
+    "New Cash To Seller"
+  )}, 
+      OR(${getCell("Open Mortgage Balance")} <= 0, ISBLANK(${getCell(
+    "Open Mortgage Balance"
+  )}))), 
+    "Seller Financing", 
+    IF(AND(${getCell("Est. Cash To Seller")} >= (${getCell(
+    "New Cash To Seller"
+  )} * 2), 
+           OR(${getCell("Open Mortgage Balance")} > 0, ISBLANK(${getCell(
+    "Open Mortgage Balance"
+  )}))), 
+      IF(AND(OR(${getCell("Open Mortgage Balance")} > 0, ISBLANK(${getCell(
+    "Open Mortgage Balance"
+  )})),
+             ${getCell("Open Mortgage Balance")} < (${getCell(
+    "New Cash To Seller"
+  )} - 5000)), 
+         "Seller Financing", 
+         "Hybrid"),
+    IF(AND(${getCell("Est. Cash To Seller")} > ${getCell(
+    "New Cash To Seller"
+  )}, 
+      ${getCell("Est. Cash To Seller")} < (${getCell(
+    "New Cash To Seller"
+  )} * 2), 
+      OR(${getCell("Open Mortgage Balance")} > 0, ISBLANK(${getCell(
+    "Open Mortgage Balance"
+  )}))), 
+      "Subject To", 
+    IF(AND(${getCell("Est. Cash To Seller")} < ${getCell(
+    "New Cash To Seller"
+  )}, 
+           OR(${getCell("Open Mortgage Balance")} > 0, ISBLANK(${getCell(
+    "Open Mortgage Balance"
+  )}))), 
+      "Subject To", 
+    "Other"))))`;
+}
+
+export default function App() {
+  const [processedData, setProcessedData] = useState<ListingFull[]>([]);
+
+  useEffect(() => {
+    const processed = processData(dataFull);
+    // console.log(JSON.stringify(processed));
+
+    setProcessedData(processed);
+  }, []);
+
+  return <DataTable columns={columnsFull} data={dataFull}></DataTable>;
 }
