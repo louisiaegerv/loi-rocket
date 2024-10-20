@@ -146,25 +146,24 @@ export type CustomFilter = {
 export type ListingFull = ListingRawData & ListingCalculatedData;
 
 export type ListingCalculatedData = {
-  acquisitionStrategy: string;
-  "Est. Equity Adjusted": "currency";
-  "Est. Equity Percent Adjusted": "percentage";
-  "Est. Agent Fee": "currency";
-  "New Agent Fee": "currency";
-  "Est. Closing Costs": "currency";
-  "Est. Cash To Seller": "currency";
-  "New Cash To Seller": "currency";
-  "Offer Price": "currency";
-  "Total Cost": "currency";
-  "Cash Offer - High": "currency";
-  "Cash Offer - Low": "currency";
-  "Entry Fee w/o CC": "currency";
-  "Entry Fee w/ CC": "currency";
-  "Offer To Asking": "percentage";
-  "Entry Fee w/o CC %": "percentage";
-  "Entry Fee w/ CC %": "percentage";
-  "Acquisition Strategy": "text";
-  Note: "text";
+  "Est. Equity Adjusted": number;
+  "Est. Equity Percent Adjusted": number;
+  "Est. Agent Fee": number;
+  "New Agent Fee": number;
+  "Est. Closing Costs": number;
+  "Est. Cash To Seller": number;
+  "New Cash To Seller": number;
+  "Offer Price": number;
+  "Total Cost": number;
+  "Cash Offer - High": number;
+  "Cash Offer - Low": number;
+  "Entry Fee w/o CC": number;
+  "Entry Fee w/ CC": number;
+  "Offer To Asking": number;
+  "Entry Fee w/o CC %": number;
+  "Entry Fee w/ CC %": number;
+  "Acquisition Strategy": string;
+  Note: string;
 };
 
 export type TagType = {
