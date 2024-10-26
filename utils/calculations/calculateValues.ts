@@ -150,6 +150,10 @@ export function calculateValues(listing: ListingRawData): ListingFull {
   // console.log("-------------------------------");
 
   const calculatedValues: ListingCalculatedData = {
+    "Est. Property Value": estimatedPropertyValue,
+    "Est. Mortgage Balance": estimatedMortgageBalance,
+    "Est. Other Debt Balance": estimatedOtherDebtBalance,
+    "Est. Total Debt": estimatedMortgageBalance + estimatedOtherDebtBalance,
     "Est. Equity Adjusted": estimatedEquityAdjusted,
     "Est. Equity Percent Adjusted": estimatedEquityPercentAdjusted,
     "Est. Agent Fee": estimatedAgentFee,

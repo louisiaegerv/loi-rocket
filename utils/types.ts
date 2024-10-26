@@ -146,6 +146,10 @@ export type CustomFilter = {
 export type ListingFull = ListingRawData & ListingCalculatedData;
 
 export type ListingCalculatedData = {
+  "Est. Property Value": number;
+  "Est. Mortgage Balance": number;
+  "Est. Other Debt Balance": number;
+  "Est. Total Debt": number;
   "Est. Equity Adjusted": number;
   "Est. Equity Percent Adjusted": number;
   "Est. Agent Fee": number;

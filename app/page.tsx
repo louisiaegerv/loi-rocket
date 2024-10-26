@@ -1,7 +1,6 @@
 "use client";
-import { DataTable } from "./data-table";
-import { columns, columnsFull } from "./columns";
-import { data, dataFull } from "./data";
+import { DataTable } from "@/components/data-table";
+import { dataFull } from "./data";
 import { ListingFull, ListingRawData } from "@/utils/types";
 import { useState, useEffect } from "react";
 import { calculateValues } from "@/utils/calculations/calculateValues";
@@ -27,5 +26,5 @@ export default function App() {
     setProcessedData(processed);
   }, []);
 
-  return <DataTable columns={columnsFull} data={processedData}></DataTable>;
+  return <DataTable data={processedData}></DataTable>;
 }

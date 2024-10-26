@@ -1,15 +1,11 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, ChangeEvent } from "react";
 
-import {
-  TagType,
-  TagColors,
-  CustomFilter,
-  ListingFull,
-  ListingRawData,
-} from "@/utils/types";
+import { TagType, TagColors, CustomFilter, ListingFull } from "@/utils/types";
 /* SHADCN Components */
+
+import { numToCurrency, debounce } from "@/utils/utils";
 
 import {
   Select,
@@ -18,7 +14,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Switch } from "@/components/ui/switch";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
@@ -64,25 +60,29 @@ import {
 
 import {
   ListFilter,
+  ArrowUpDown,
+  ArrowUp,
+  ArrowDown,
   Tag,
   Save,
   Check,
-  ChevronsUpDown,
   Plus,
-  TagIcon,
   X,
   ChevronLeft,
   ChevronRight,
   Columns3,
-  Ellipsis,
+  Settings,
 } from "lucide-react";
 
 import {
   Column,
   ColumnDef,
+  RowExpanding,
   RowData,
   ColumnFiltersState,
   ColumnOrderState,
+  ColumnResizeMode,
+  ColumnResizeDirection,
   SortingState,
   VisibilityState,
   flexRender,
@@ -94,9 +94,8 @@ import {
   useReactTable,
 } from "@tanstack/react-table";
 
-interface DataTableProps<TData, TValue> {
-  columns: ColumnDef<TData, TValue>[];
-  data: TData[] | ListingFull[];
+interface DataTableProps<TData> {
+  data: TData[];
 }
 
 declare module "@tanstack/react-table" {
@@ -109,11 +108,11 @@ declare module "@tanstack/react-table" {
   }
 }
 
-export function DataTable<TData, TValue>({
-  columns,
-  data: initialData,
-}: DataTableProps<TData, TValue>) {
-  const [data, setData] = useState<ListingFull[]>(initialData);
+export function DataTable<TData extends ListingFull>({
+  data,
+}: DataTableProps<TData>) {
+  const [tableData, setTableData] = useState<ListingFull[]>([]);
+  const [columns, setColumns] = useState<ColumnDef<ListingFull>[]>([]);
   const [rowSelection, setRowSelection] = useState({});
   const [sorting, setSorting] = useState<SortingState>([]);
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
@@ -121,6 +120,10 @@ export function DataTable<TData, TValue>({
   const [columnVisibility, setColumnVisibility] = useState<VisibilityState>({});
   const [pagination, setPagination] = React.useState<PaginationState>({});
   const [customFilters, setCustomFilters] = useState<CustomFilter[]>([]);
+  const [columnResizeMode, setColumnResizeMode] =
+    React.useState<ColumnResizeMode>("onChange");
+  const [columnResizeDirection, setColumnResizeDirection] =
+    React.useState<ColumnResizeDirection>("ltr");
   const [newCustomFilterName, setNewCustomFilterName] = useState<string>("");
   const [loadedCustomFilterName, setLoadedCustomFilterName] =
     useState<string>("");
@@ -137,8 +140,10 @@ export function DataTable<TData, TValue>({
   const [devMode, setDevMode] = useState<boolean>(false);
 
   const table = useReactTable({
-    data,
+    data: tableData,
     columns,
+    columnResizeMode,
+    columnResizeDirection,
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),
     onSortingChange: setSorting,
@@ -148,6 +153,9 @@ export function DataTable<TData, TValue>({
     onColumnVisibilityChange: setColumnVisibility,
     onColumnFiltersChange: setColumnFilters,
     getFilteredRowModel: getFilteredRowModel(),
+    defaultColumn: {
+      size: 200,
+    },
     filterFns: {},
     state: {
       sorting,
@@ -161,10 +169,353 @@ export function DataTable<TData, TValue>({
     },
   });
 
-  // Debugging: Log when data prop changes
+  //initialize the table data
   useEffect(() => {
-    setData(initialData); // Make sure to update the internal data state
-  }, [initialData]);
+    setTableData(data);
+  }, [data]);
+
+  //initialize the data table columns
+  useEffect(() => {
+    const initialColumns: ColumnDef<ListingFull>[] = [
+      {
+        id: "select",
+        header: ({ table }) => (
+          <Checkbox
+            className="m-2"
+            checked={
+              table.getIsAllRowsSelected() ||
+              (table.getIsSomeRowsSelected() && "indeterminate")
+            }
+            onCheckedChange={(value) => table.toggleAllRowsSelected(!!value)}
+            aria-label="Select all"
+          />
+        ),
+        cell: ({ row }) => (
+          <Checkbox
+            checked={row.getIsSelected()}
+            onCheckedChange={(value) => row.toggleSelected(!!value)}
+            aria-label="Select Row"
+            className="m-2"
+          />
+        ),
+        enableSorting: false,
+        enableHiding: false,
+        size: 50,
+      },
+      {
+        id: "Tags",
+        accessorKey: "tags",
+        header: "Tags",
+        cell: (row) => (
+          <div className={`min-w-max text-left`}>
+            {row.row.original.tags?.map((tag, index) => (
+              <Badge variant="outline" key={index} className="mr-1">
+                {tag.value}
+                <button
+                  className="ml-2 text-red-500 font-bold"
+                  onClick={() =>
+                    removeTag(row.row.original.propAddress || "", tag)
+                  }
+                >
+                  ×
+                </button>
+              </Badge>
+            ))}
+          </div>
+        ),
+        meta: {
+          filterVariant: "array",
+        },
+        filterFn: (row, columnId, filterValue: string) => {
+          const rowVal: TagType[] = row.getValue(columnId);
+          if (!rowVal) return false;
+          else
+            return rowVal.some((item) =>
+              String(item.value)
+                .toLowerCase()
+                .includes(filterValue.toLowerCase())
+            );
+        },
+        enableSorting: false,
+      },
+      {
+        id: "Prop. Address",
+        accessorKey: "propAddress",
+        header: "Address",
+        cell: (row) => <div>{String(row.getValue())}</div>,
+      },
+      {
+        id: "Prop. City",
+        accessorKey: "propCity",
+        header: "City",
+        cell: (row) => <div>{String(row.getValue())}</div>,
+      },
+
+      {
+        id: "Prop. State/Region",
+        accessorKey: "propStateRegion",
+        cell: (row) => <div>{String(row.getValue())}</div>,
+      },
+
+      {
+        id: "Listing Price",
+        accessorKey: "listingPrice",
+        cell: ({ getValue, row }) => {
+          const rowData = row.original;
+
+          // Log the "Est. Property Value" if it exists
+          console.log(
+            rowData["Est. Property Value"] ||
+              "Est. Property Value not available"
+          );
+
+          const amount = getValue() as number;
+          return numToCurrency(amount);
+        },
+        meta: {
+          filterVariant: "range",
+          isNumeric: true,
+          isCurrency: true,
+        },
+      },
+
+      {
+        id: "Prop. Est. Value",
+        accessorKey: "propEstValue",
+        cell: ({ getValue }) => {
+          const amount = getValue() as number;
+          return numToCurrency(amount);
+        },
+        meta: {
+          filterVariant: "range",
+          isNumeric: true,
+        },
+      },
+
+      {
+        id: "Loan 1 Balance",
+        accessorKey: "loan1Balance",
+        cell: ({ getValue }) => {
+          const amount = getValue() as number;
+          return numToCurrency(amount);
+        },
+        meta: {
+          filterVariant: "range",
+          isNumeric: true,
+        },
+      },
+
+      {
+        id: "Loan 1 Interest Rate",
+        accessorKey: "loan1InterestRate",
+        cell: ({ getValue, column }) => {
+          return (
+            <div
+              className={`${
+                column.columnDef.meta?.isNumeric ? "text-right mr-[24px]" : ""
+              }`}
+            >
+              {getValue() as number}
+            </div>
+          );
+        },
+        meta: {
+          filterVariant: "range",
+          isNumeric: true,
+        },
+      },
+
+      {
+        id: "Prop. Bedrooms #",
+        accessorKey: "propBedroomsNumber",
+        cell: (row) => <div>{String(row.getValue())}</div>,
+        meta: {
+          filterVariant: "range",
+          isNumeric: true,
+        },
+      },
+
+      {
+        id: "Prop. Bathrooms #",
+        accessorKey: "propBathroomsNumber",
+        cell: (row) => <div>{String(row.getValue())}</div>,
+        meta: {
+          filterVariant: "range",
+          isNumeric: true,
+        },
+      },
+
+      {
+        id: "Prop. Building Sqft",
+        accessorKey: "propBuildingSqft",
+        cell: (row) => <div>{String(row.getValue())}</div>,
+        meta: {
+          filterVariant: "range",
+          isNumeric: true,
+        },
+      },
+
+      {
+        id: "Prop. Lot Size (Sqft)",
+        accessorKey: "propLotSizeSqft",
+        cell: (row) => <div>{String(row.getValue())}</div>,
+        meta: {
+          filterVariant: "range",
+          isNumeric: true,
+        },
+      },
+
+      {
+        id: "Prop. APN",
+        accessorKey: "propApn",
+        cell: (row) => <div>{String(row.getValue())}</div>,
+      },
+
+      {
+        id: "Prop. Type",
+        accessorKey: "propType",
+        cell: (row) => <div>{String(row.getValue())}</div>,
+      },
+
+      {
+        id: "Prop. Last Sale Amount",
+        accessorKey: "propLastSaleAmount",
+        cell: ({ getValue }) => {
+          const amount = getValue() as number;
+          return numToCurrency(amount);
+        },
+        meta: {
+          filterVariant: "range",
+          isNumeric: true,
+        },
+      },
+
+      {
+        id: "Prop. Last Sale Date",
+        accessorKey: "propLastSaleDate",
+        cell: (row) => <div>{String(row.getValue())}</div>,
+      },
+
+      {
+        id: "Prop. Assessed Total Value",
+        accessorKey: "propAssessedTotalValue",
+        cell: ({ getValue }) => {
+          const amount = getValue() as number;
+          return numToCurrency(amount);
+        },
+        meta: {
+          filterVariant: "range",
+          isNumeric: true,
+        },
+      },
+
+      {
+        id: "Prop. Vacant",
+        accessorKey: "propVacant",
+        cell: (row) => <div>{String(row.getValue())}</div>,
+        meta: {
+          filterVariant: "select",
+          selectOptions: ["any", "true", "false"],
+        },
+        filterFn: "equalsString",
+      },
+
+      {
+        id: "Owner Occupied",
+        accessorKey: "ownerOccupied",
+        cell: (row) => <div>{String(row.getValue())}</div>,
+        meta: {
+          filterVariant: "select",
+          selectOptions: ["any", "true", "false"],
+        },
+        filterFn: "equalsString",
+      },
+
+      {
+        id: "Loan 1 Lender",
+        accessorKey: "loan1Lender",
+        cell: (row) => <div>{String(row.getValue())}</div>,
+      },
+
+      {
+        id: "Loan 1 Org. Date",
+        accessorKey: "loan1OrgDate",
+        cell: (row) => <div>{String(row.getValue())}</div>,
+      },
+
+      {
+        id: "Loan 1 Type",
+        accessorKey: "loan1Type",
+        cell: (row) => <div>{String(row.getValue())}</div>,
+      },
+
+      {
+        id: "Brokerage Name",
+        accessorKey: "brokerageName",
+        cell: (row) => <div>{String(row.getValue())}</div>,
+      },
+
+      {
+        id: "Agent Full Name",
+        accessorKey: "agentFullName",
+        cell: (row) => <div>{String(row.getValue())}</div>,
+      },
+
+      {
+        id: "Agent Phone",
+        accessorKey: "agentPhone",
+        cell: (row) => <div>{String(row.getValue())}</div>,
+      },
+
+      {
+        id: "Agent Email",
+        accessorKey: "agentEmail",
+        cell: (row) => <div>{String(row.getValue())}</div>,
+      },
+
+      {
+        id: "Listing Date",
+        accessorKey: "listingDate",
+        cell: (row) => <div>{String(row.getValue())}</div>,
+      },
+
+      {
+        id: "Listing Status",
+        accessorKey: "listingStatus",
+        cell: (row) => <div>{String(row.getValue())}</div>,
+        meta: {
+          filterVariant: "select",
+          selectOptions: ["any", "active", "pending", "inactive"],
+        },
+        filterFn: "equals",
+      },
+
+      {
+        id: "Mailing Address",
+        accessorKey: "mailingAddress",
+        cell: (row) => <div>{String(row.getValue())}</div>,
+      },
+
+      {
+        id: "Mailing City",
+        accessorKey: "mailingCity",
+        cell: (row) => <div>{String(row.getValue())}</div>,
+      },
+
+      {
+        id: "Mailing State/Region",
+        accessorKey: "mailingStateRegion",
+        cell: (row) => <div>{String(row.getValue())}</div>,
+      },
+
+      {
+        id: "Mailing ZIP/Postal Code",
+        accessorKey: "mailingZipPostalCode",
+        cell: (row) => <div>{String(row.getValue())}</div>,
+      },
+    ];
+    setColumns(initialColumns);
+  }, []);
 
   // Load saved filters from localStorage on component mount
   useEffect(() => {
@@ -223,12 +574,17 @@ export function DataTable<TData, TValue>({
     });
   }, []);
 
+  const handleSaveTagValue = (newTag: TagType) => {
+    setNewTag(newTag);
+    console.log(newTag);
+  };
+
   //add a new tag to the selected listings
   const addTagToSelected = useCallback(() => {
     const selectedRows = table.getFilteredSelectedRowModel().rows;
     const selectedRowIds = selectedRows.map((row) => row.original.propAddress);
     if (newTag && selectedRows.length > 0) {
-      setData((prevData: ListingFull[]) =>
+      setTableData((prevData: ListingFull[]) =>
         prevData.map((listing) =>
           selectedRowIds.includes(listing.propAddress)
             ? {
@@ -248,24 +604,176 @@ export function DataTable<TData, TValue>({
   }, [newTag, table]);
 
   // remove tag from selected listing
-  // const removeTag = useCallback((propertyId: number, tagToRemove: TagType) => {
-  //   setData((prevData: Listing[]) =>
-  //     prevData.map((property) =>
-  //       property.id === propertyId
-  //         ? {
-  //             ...property,
-  //             tags: property.tags.filter((tag) => tag !== tagToRemove),
-  //           }
-  //         : property
-  //     )
-  //   );
-  // }, []);
+  const removeTag = useCallback(
+    (propertyAddress: string, tagToRemove: TagType) => {
+      setTableData((prevData: ListingFull[]) =>
+        prevData.map((property) =>
+          property.propAddress === propertyAddress
+            ? {
+                ...property,
+                tags: property.tags?.filter((tag) => tag !== tagToRemove),
+              }
+            : property
+        )
+      );
+    },
+    []
+  );
 
   return (
-    <div className="p-4 flex flex-col h-[88vh] lg:h-screen">
+    <div className="p-4 flex flex-col h-screen">
       {/* Header Controls */}
       <div id="header" className="mb-2 flex justify-between">
         <div className="header-controls-left flex gap-2 items-center">
+          {/* Save Tags Sidebar */}
+          <Sheet>
+            <SheetTrigger
+              disabled={!table.getFilteredSelectedRowModel().rows.length}
+              asChild
+            >
+              <Button
+                variant="outline"
+                disabled={!table.getFilteredSelectedRowModel().rows.length}
+              >
+                <Tag className="inline-block" />
+                <span className="hidden ml-2 sm:inline-block">Tag</span>
+              </Button>
+            </SheetTrigger>
+            <SheetContent className="md:max-w-sm">
+              <SheetHeader>
+                <SheetTitle>Save Tag</SheetTitle>
+                <SheetDescription>
+                  Save a custom tag for the{" "}
+                  {table.getFilteredSelectedRowModel().flatRows.length}{" "}
+                  currently selected rows.
+                </SheetDescription>
+              </SheetHeader>
+              {/* SAVE TAG Section */}
+              <div className="">
+                <Label
+                  htmlFor="tagName"
+                  className="block mb-2 mt-3 font-medium font-bold"
+                >
+                  Tag Name
+                </Label>
+                {/* <Input
+                  type="text"
+                  id="tagName"
+                  value={newTag.value}
+                  onChange={(e) =>
+                    setNewTag({ ...newTag, value: e.target.value })
+                  }
+                  placeholder="Enter new tag"
+                /> */}
+                <DebouncedInput
+                  type="text"
+                  id="tagName"
+                  value={newTag.value}
+                  onChange={(tagValue) => {
+                    // setNewTag({ ...newTag, value: tagValue });
+                    handleSaveTagValue({ ...newTag, value: tagValue });
+                  }}
+                  placeholder="Enter new tag"
+                />
+                <Label
+                  htmlFor="tagColor"
+                  className="block mb-2 mt-3 font-medium font-bold"
+                >
+                  Tag Color
+                </Label>
+                <Select
+                  name="tagColor"
+                  onValueChange={(color) =>
+                    setNewTag({ ...newTag, color: color })
+                  }
+                  value={newTag.color || ""}
+                >
+                  <SelectTrigger
+                    className={`col-span-2 ${
+                      newTag.color
+                        ? `bg-${newTag.color}-200 text-${newTag.color}-600`
+                        : ""
+                    }`}
+                  >
+                    <SelectValue placeholder="Choose a color" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {TagColors.map((color) => (
+                      <SelectItem
+                        key={color}
+                        value={color}
+                        className={`mt-1 bg-${color}-200 text-${color}-600`}
+                      >
+                        {color}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+
+                <Button
+                  onClick={addTagToSelected}
+                  className="w-full mt-4 px-4 py-2"
+                  disabled={!newTag.value || !newTag.color}
+                  // variant="outline"
+                >
+                  Add Tag
+                </Button>
+              </div>
+            </SheetContent>
+          </Sheet>
+
+          {/* Show/Hide Columns */}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" className="ml-auto">
+                <Columns3 className="inline-block" />
+                <span className="hidden ml-2 sm:inline-block">Columns</span>
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <ScrollArea className="h-72">
+                {table
+                  .getAllColumns()
+                  .filter((column) => column.getCanHide())
+                  .map((column) => {
+                    return (
+                      <DropdownMenuCheckboxItem
+                        key={column.id}
+                        className="capitalize"
+                        checked={column.getIsVisible()}
+                        onSelect={(event) => event.preventDefault()}
+                        onCheckedChange={(value) => {
+                          column.toggleVisibility(!!value);
+                        }}
+                      >
+                        {column.id}
+                      </DropdownMenuCheckboxItem>
+                    );
+                  })}
+              </ScrollArea>
+              {/* Toggle All Columns */}
+              <Button
+                variant="outline"
+                className="w-full my-1"
+                onClick={() => {
+                  table.toggleAllColumnsVisible(!allColumnVisibility);
+                  setAllColumnVisibility((prev) => !prev);
+                }}
+              >
+                Toggle All
+              </Button>
+              {/* Reset Columns */}
+              <Button
+                className="w-full"
+                onClick={() => table.toggleAllColumnsVisible(true)}
+              >
+                Reset
+              </Button>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
+
+        <div className="header-controls-right flex gap-2 items-center">
           {/* Filter Sidebar */}
           <Sheet open={filterSheetOpen} onOpenChange={setFilterSheetOpen}>
             <SheetTrigger asChild>
@@ -472,150 +980,11 @@ export function DataTable<TData, TValue>({
             </SheetContent>
           </Sheet>
 
-          {/* Show/Hide Columns */}
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="outline" className="ml-auto">
-                <Columns3 className="inline-block" />
-                <span className="hidden ml-2 sm:inline-block">Columns</span>
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <ScrollArea className="h-72">
-                {table
-                  .getAllColumns()
-                  .filter((column) => column.getCanHide())
-                  .map((column) => {
-                    return (
-                      <DropdownMenuCheckboxItem
-                        key={column.id}
-                        className="capitalize"
-                        checked={column.getIsVisible()}
-                        onSelect={(event) => event.preventDefault()}
-                        onCheckedChange={(value) => {
-                          column.toggleVisibility(!!value);
-                        }}
-                      >
-                        {column.id}
-                      </DropdownMenuCheckboxItem>
-                    );
-                  })}
-              </ScrollArea>
-              {/* Toggle All Columns */}
-              <Button
-                variant="outline"
-                className="w-full my-1"
-                onClick={() => {
-                  table.toggleAllColumnsVisible(!allColumnVisibility);
-                  setAllColumnVisibility((prev) => !prev);
-                }}
-              >
-                Toggle All
-              </Button>
-              {/* Reset Columns */}
-              <Button
-                className="w-full"
-                onClick={() => table.toggleAllColumnsVisible(true)}
-              >
-                Reset
-              </Button>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        </div>
-
-        <div className="header-controls-right flex gap-2 items-center">
-          {/* Save Tags Sidebar */}
-          <Sheet>
-            <SheetTrigger
-              disabled={!table.getFilteredSelectedRowModel().rows.length}
-              asChild
-            >
-              <Button
-                variant="outline"
-                disabled={!table.getFilteredSelectedRowModel().rows.length}
-              >
-                <Tag className="inline-block" />
-                <span className="hidden ml-2 sm:inline-block">Tag</span>
-              </Button>
-            </SheetTrigger>
-            <SheetContent className="md:max-w-sm">
-              <SheetHeader>
-                <SheetTitle>Save Tag</SheetTitle>
-                <SheetDescription>
-                  Save a custom tag for the{" "}
-                  {table.getFilteredSelectedRowModel().flatRows.length}{" "}
-                  currently selected rows.
-                </SheetDescription>
-              </SheetHeader>
-              {/* SAVE TAG Section */}
-              <div className="">
-                <Label
-                  htmlFor="tagName"
-                  className="block mb-2 mt-3 font-medium font-bold"
-                >
-                  Tag Name
-                </Label>
-                <Input
-                  type="text"
-                  id="tagName"
-                  value={newTag.value}
-                  onChange={(e) =>
-                    setNewTag({ ...newTag, value: e.target.value })
-                  }
-                  placeholder="Enter new tag"
-                />
-                <Label
-                  htmlFor="tagColor"
-                  className="block mb-2 mt-3 font-medium font-bold"
-                >
-                  Tag Color
-                </Label>
-                <Select
-                  name="tagColor"
-                  onValueChange={(color) =>
-                    setNewTag({ ...newTag, color: color })
-                  }
-                  value={newTag.color || ""}
-                >
-                  <SelectTrigger
-                    className={`col-span-2 ${
-                      newTag.color
-                        ? `bg-${newTag.color}-200 text-${newTag.color}-600`
-                        : ""
-                    }`}
-                  >
-                    <SelectValue placeholder="Choose a color" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {TagColors.map((color) => (
-                      <SelectItem
-                        key={color}
-                        value={color}
-                        className={`mt-1 bg-${color}-200 text-${color}-600`}
-                      >
-                        {color}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-
-                <Button
-                  onClick={addTagToSelected}
-                  className="w-full mt-4 px-4 py-2"
-                  disabled={!newTag.value || !newTag.color}
-                  // variant="outline"
-                >
-                  Add Tag
-                </Button>
-              </div>
-            </SheetContent>
-          </Sheet>
-
           {/* More Button */}
           <Sheet>
             <SheetTrigger asChild>
               <Button variant="outline">
-                <Ellipsis />
+                <Settings />
               </Button>
             </SheetTrigger>
             <SheetContent></SheetContent>
@@ -625,23 +994,81 @@ export function DataTable<TData, TValue>({
 
       {/* Table */}
       <ScrollArea id="scrollarea" className="rounded-md border">
-        <Table className="">
-          <TableHeader>
-            <TableRow>
+        <Table
+          className="relative"
+          {...{
+            style: {
+              width: table.getCenterTotalSize(),
+            },
+          }}
+        >
+          <TableHeader className="sticky top-0 z-10 bg-gray-50">
+            <TableRow isHeader>
               {table.getFlatHeaders().map((header) => (
                 <TableHead
                   key={header.id}
-                  colSpan={header.colSpan}
-                  className={
-                    header.column.columnDef.meta?.isNumeric ? "text-right" : ""
-                  }
+                  className={`group relative ${
+                    header.column.getIsSorted()
+                      ? "border-blue-500 border-2"
+                      : ""
+                  }`}
+                  onClick={header.column.getToggleSortingHandler()}
+                  style={{
+                    width: `${header.getSize()}px`,
+                  }}
                 >
-                  {header.isPlaceholder
-                    ? null
-                    : flexRender(
-                        header.column.columnDef.header,
-                        header.getContext()
-                      )}
+                  <div
+                    {...{
+                      onDoubleClick: () => header.column.resetSize(),
+                      onMouseDown: header.getResizeHandler(),
+                      onTouchStart: header.getResizeHandler(),
+                      className: `absolute h-full t-0 w-[3px] resizer transition bg-blue-500/50 hover:bg-blue-500 ${table.options.columnResizeDirection} `,
+                      style: {
+                        transform:
+                          columnResizeMode === "onChange" &&
+                          header.column.getIsResizing()
+                            ? `translateX(${
+                                (table.options.columnResizeDirection === "rtl"
+                                  ? -1
+                                  : 1) *
+                                (table.getState().columnSizingInfo
+                                  .deltaOffset ?? 0)
+                              }px) translateY(-50%)`
+                            : "translateY(-50%)",
+                      },
+                    }}
+                  />
+                  <div
+                    className={`flex items-center gap-2 ${
+                      header.column.columnDef.meta?.isNumeric
+                        ? "justify-end"
+                        : ""
+                    }`}
+                  >
+                    {header.isPlaceholder
+                      ? null
+                      : flexRender(
+                          header.column.columnDef.header,
+                          header.getContext()
+                        )}
+                    {header.column.getCanSort() ? ( // check if the column can be sorted
+                      <div
+                        className={`transition-opacity duration-200 group-hover:opacity-100 ${
+                          header.column.getIsSorted() ? "" : "opacity-0"
+                        }`}
+                      >
+                        {header.column.getIsSorted() ? (
+                          header.column.getIsSorted() === "desc" ? (
+                            <ArrowDown size={16} />
+                          ) : (
+                            <ArrowUp size={16} />
+                          )
+                        ) : (
+                          <ArrowUp size={16} className="text-gray-400" />
+                        )}
+                      </div>
+                    ) : null}
+                  </div>
                 </TableHead>
               ))}
             </TableRow>
@@ -656,9 +1083,7 @@ export function DataTable<TData, TValue>({
                   <TableCell
                     key={cell.id}
                     className={
-                      cell.column.columnDef.meta?.isNumeric
-                        ? "text-right font-mono"
-                        : ""
+                      cell.column.columnDef.meta?.isNumeric ? "text-right" : ""
                     }
                   >
                     {flexRender(cell.column.columnDef.cell, cell.getContext())}
@@ -678,34 +1103,15 @@ export function DataTable<TData, TValue>({
             <div className="flex-1 text-md text-muted-foreground">
               {table.getFilteredSelectedRowModel().rows.length} of{" "}
               {table.getFilteredRowModel().rows.length} row(s) selected.
-              <Button
-                className="ml-2"
+              <span
+                className="ml-2 hover:cursor-pointer"
                 onClick={() => setDevMode((prev) => !prev)}
               >
-                Dev Mode: {devMode ? "ON 🤖" : "OFF"}
-              </Button>
+                .
+              </span>
             </div>
           </div>
-          <div className="right flex gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => table.previousPage()}
-              disabled={!table.getCanPreviousPage()}
-            >
-              <ChevronLeft />
-              <span className="hidden sm:inline">Previous</span>
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => table.nextPage()}
-              disabled={!table.getCanNextPage()}
-            >
-              <span className="hidden sm:inline">Next</span>
-              <ChevronRight />
-            </Button>
-          </div>
+          <div className="right flex gap-2"></div>
         </div>
 
         {/* Dev Mode log section */}
@@ -855,3 +1261,27 @@ function DebouncedInput({
     />
   );
 }
+
+const DebouncedInput3: React.FC<{
+  value: string;
+  onChange: (value: string) => void;
+  debounceTime?: number;
+}> = ({ value: initialValue, onChange, debounceTime = 1000, ...props }) => {
+  const [value, setValue] = useState(initialValue);
+
+  useEffect(() => {
+    setValue(initialValue);
+  }, [initialValue]);
+
+  const debouncedOnChange = debounce((value: string) => {
+    onChange(value);
+  }, debounceTime);
+
+  const handleInputChange = (event: ChangeEvent<HTMLInputElement>) => {
+    const newValue = event.target.value;
+    setValue(newValue);
+    debouncedOnChange(newValue);
+  };
+
+  return <input {...props} value={value} onChange={handleInputChange} />;
+};
