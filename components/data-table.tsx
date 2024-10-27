@@ -60,7 +60,6 @@ import {
 
 import {
   ListFilter,
-  ArrowUpDown,
   ArrowUp,
   ArrowDown,
   Tag,
@@ -68,8 +67,6 @@ import {
   Check,
   Plus,
   X,
-  ChevronLeft,
-  ChevronRight,
   Columns3,
   Settings,
 } from "lucide-react";
@@ -77,10 +74,8 @@ import {
 import {
   Column,
   ColumnDef,
-  RowExpanding,
   RowData,
   ColumnFiltersState,
-  ColumnOrderState,
   ColumnResizeMode,
   ColumnResizeDirection,
   SortingState,
@@ -1027,9 +1022,9 @@ export function DataTable<TData extends ListingFull>({
               {table.getFlatHeaders().map((header) => (
                 <TableHead
                   key={header.id}
-                  className={`group overflow-hidden relative ${
+                  className={`relative ${
                     header.column.getIsResizing()
-                      ? "border-blue-500 border-2"
+                      ? "border-blue-500 border-2 box-content" // Added box-content to prevent border from affecting width
                       : ""
                   }`}
                   style={{
@@ -1038,17 +1033,16 @@ export function DataTable<TData extends ListingFull>({
                 >
                   {/* Content Container */}
                   <div
-                    className={`flex items-center pr-[15px] ${
+                    className={`group/outer flex items-center pr-[15px] ${
                       header.column.columnDef.meta?.isNumeric
                         ? "justify-end"
                         : ""
                     }`}
                   >
-                    {/* Add right padding to prevent content from overlapping resizer */}
                     <div
                       className={`flex items-center gap-2 min-w-0 ${
                         header.column.getCanSort() &&
-                        "cursor-pointer hover:bg-gray-50  rounded px-2 py-1"
+                        "cursor-pointer hover:bg-gray-200  rounded px-2 py-1"
                       }`}
                       onClick={
                         header.column.getCanSort()
@@ -1068,7 +1062,7 @@ export function DataTable<TData extends ListingFull>({
                       {/* Sort Icon */}
                       {header.column.getCanSort() && (
                         <div
-                          className={`flex-shrink-0 transition-opacity duration-200 group-hover:opacity-100 ${
+                          className={`flex-shrink-0 transition-opacity duration-200 group-hover/outer:opacity-100 ${
                             header.column.getIsSorted() ? "" : "opacity-0"
                           }`}
                         >
@@ -1090,10 +1084,10 @@ export function DataTable<TData extends ListingFull>({
                         onDoubleClick={() => header.column.resetSize()}
                         onMouseDown={header.getResizeHandler()}
                         onTouchStart={header.getResizeHandler()}
-                        className="absolute top-0 right-0 h-full w-[15px] cursor-col-resize z-10 flex items-center justify-center touch-none"
+                        className="child2 group/resizer absolute top-0 right-0 h-full w-[15px] cursor-col-resize z-20 flex items-center justify-center touch-none "
                       >
                         <div
-                          className={`w-[2px] h-2/3 bg-gray-500/50 ${
+                          className={`grandchild group-hover/resizer:bg-blue-500 w-[2px] h-2/3 bg-gray-500/50 ${
                             header.column.getIsResizing() ? "hidden" : ""
                           }`}
                         />
