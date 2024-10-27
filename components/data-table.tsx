@@ -94,6 +94,8 @@ import {
   useReactTable,
 } from "@tanstack/react-table";
 
+import { useVirtualizer } from "@tanstack/react-virtual";
+
 interface DataTableProps<TData> {
   data: TData[];
 }
@@ -120,10 +122,10 @@ export function DataTable<TData extends ListingFull>({
   const [columnVisibility, setColumnVisibility] = useState<VisibilityState>({});
   const [pagination, setPagination] = React.useState<PaginationState>({});
   const [customFilters, setCustomFilters] = useState<CustomFilter[]>([]);
-  const [columnResizeMode, setColumnResizeMode] =
-    React.useState<ColumnResizeMode>("onChange");
-  const [columnResizeDirection, setColumnResizeDirection] =
-    React.useState<ColumnResizeDirection>("ltr");
+  const [columnResizeMode] = React.useState<ColumnResizeMode>("onChange");
+  const [columnResizeDirection] = React.useState<ColumnResizeDirection>("ltr");
+  const [columnSizing, setColumnSizing] = React.useState({});
+
   const [newCustomFilterName, setNewCustomFilterName] = useState<string>("");
   const [loadedCustomFilterName, setLoadedCustomFilterName] =
     useState<string>("");
@@ -152,9 +154,11 @@ export function DataTable<TData extends ListingFull>({
     onPaginationChange: setPagination,
     onColumnVisibilityChange: setColumnVisibility,
     onColumnFiltersChange: setColumnFilters,
+    onColumnSizingChange: setColumnSizing,
     getFilteredRowModel: getFilteredRowModel(),
     defaultColumn: {
       size: 200,
+      minSize: 50,
     },
     filterFns: {},
     state: {
@@ -162,11 +166,13 @@ export function DataTable<TData extends ListingFull>({
       rowSelection,
       columnVisibility,
       columnFilters,
+      columnSizing,
       pagination: {
         pageIndex: 0,
-        pageSize: 50,
+        pageSize: 300,
       },
     },
+    sortDescFirst: false,
   });
 
   //initialize the table data
@@ -200,6 +206,7 @@ export function DataTable<TData extends ListingFull>({
         ),
         enableSorting: false,
         enableHiding: false,
+        enableResizing: false,
         size: 50,
       },
       {
@@ -242,32 +249,32 @@ export function DataTable<TData extends ListingFull>({
         id: "Prop. Address",
         accessorKey: "propAddress",
         header: "Address",
-        cell: (row) => <div>{String(row.getValue())}</div>,
+        cell: (row) => String(row.getValue()),
       },
       {
         id: "Prop. City",
         accessorKey: "propCity",
         header: "City",
-        cell: (row) => <div>{String(row.getValue())}</div>,
+        cell: (row) => String(row.getValue()),
       },
 
       {
         id: "Prop. State/Region",
         accessorKey: "propStateRegion",
-        cell: (row) => <div>{String(row.getValue())}</div>,
+        cell: (row) => String(row.getValue()),
       },
 
       {
         id: "Listing Price",
         accessorKey: "listingPrice",
         cell: ({ getValue, row }) => {
-          const rowData = row.original;
+          // const rowData = row.original;
 
           // Log the "Est. Property Value" if it exists
-          console.log(
-            rowData["Est. Property Value"] ||
-              "Est. Property Value not available"
-          );
+          // console.log(
+          //   rowData["Est. Property Value"] ||
+          //     "Est. Property Value not available"
+          // );
 
           const amount = getValue() as number;
           return numToCurrency(amount);
@@ -308,16 +315,8 @@ export function DataTable<TData extends ListingFull>({
       {
         id: "Loan 1 Interest Rate",
         accessorKey: "loan1InterestRate",
-        cell: ({ getValue, column }) => {
-          return (
-            <div
-              className={`${
-                column.columnDef.meta?.isNumeric ? "text-right mr-[24px]" : ""
-              }`}
-            >
-              {getValue() as number}
-            </div>
-          );
+        cell: ({ getValue }) => {
+          return getValue() as number;
         },
         meta: {
           filterVariant: "range",
@@ -328,7 +327,7 @@ export function DataTable<TData extends ListingFull>({
       {
         id: "Prop. Bedrooms #",
         accessorKey: "propBedroomsNumber",
-        cell: (row) => <div>{String(row.getValue())}</div>,
+        cell: (row) => String(row.getValue()),
         meta: {
           filterVariant: "range",
           isNumeric: true,
@@ -338,7 +337,7 @@ export function DataTable<TData extends ListingFull>({
       {
         id: "Prop. Bathrooms #",
         accessorKey: "propBathroomsNumber",
-        cell: (row) => <div>{String(row.getValue())}</div>,
+        cell: (row) => String(row.getValue()),
         meta: {
           filterVariant: "range",
           isNumeric: true,
@@ -348,7 +347,7 @@ export function DataTable<TData extends ListingFull>({
       {
         id: "Prop. Building Sqft",
         accessorKey: "propBuildingSqft",
-        cell: (row) => <div>{String(row.getValue())}</div>,
+        cell: (row) => String(row.getValue()),
         meta: {
           filterVariant: "range",
           isNumeric: true,
@@ -358,7 +357,7 @@ export function DataTable<TData extends ListingFull>({
       {
         id: "Prop. Lot Size (Sqft)",
         accessorKey: "propLotSizeSqft",
-        cell: (row) => <div>{String(row.getValue())}</div>,
+        cell: (row) => String(row.getValue()),
         meta: {
           filterVariant: "range",
           isNumeric: true,
@@ -368,13 +367,13 @@ export function DataTable<TData extends ListingFull>({
       {
         id: "Prop. APN",
         accessorKey: "propApn",
-        cell: (row) => <div>{String(row.getValue())}</div>,
+        cell: (row) => String(row.getValue()),
       },
 
       {
         id: "Prop. Type",
         accessorKey: "propType",
-        cell: (row) => <div>{String(row.getValue())}</div>,
+        cell: (row) => String(row.getValue()),
       },
 
       {
@@ -393,7 +392,7 @@ export function DataTable<TData extends ListingFull>({
       {
         id: "Prop. Last Sale Date",
         accessorKey: "propLastSaleDate",
-        cell: (row) => <div>{String(row.getValue())}</div>,
+        cell: (row) => String(row.getValue()),
       },
 
       {
@@ -412,7 +411,7 @@ export function DataTable<TData extends ListingFull>({
       {
         id: "Prop. Vacant",
         accessorKey: "propVacant",
-        cell: (row) => <div>{String(row.getValue())}</div>,
+        cell: (row) => String(row.getValue()),
         meta: {
           filterVariant: "select",
           selectOptions: ["any", "true", "false"],
@@ -423,7 +422,7 @@ export function DataTable<TData extends ListingFull>({
       {
         id: "Owner Occupied",
         accessorKey: "ownerOccupied",
-        cell: (row) => <div>{String(row.getValue())}</div>,
+        cell: (row) => String(row.getValue()),
         meta: {
           filterVariant: "select",
           selectOptions: ["any", "true", "false"],
@@ -434,55 +433,55 @@ export function DataTable<TData extends ListingFull>({
       {
         id: "Loan 1 Lender",
         accessorKey: "loan1Lender",
-        cell: (row) => <div>{String(row.getValue())}</div>,
+        cell: (row) => String(row.getValue()),
       },
 
       {
         id: "Loan 1 Org. Date",
         accessorKey: "loan1OrgDate",
-        cell: (row) => <div>{String(row.getValue())}</div>,
+        cell: (row) => String(row.getValue()),
       },
 
       {
         id: "Loan 1 Type",
         accessorKey: "loan1Type",
-        cell: (row) => <div>{String(row.getValue())}</div>,
+        cell: (row) => String(row.getValue()),
       },
 
       {
         id: "Brokerage Name",
         accessorKey: "brokerageName",
-        cell: (row) => <div>{String(row.getValue())}</div>,
+        cell: (row) => String(row.getValue()),
       },
 
       {
         id: "Agent Full Name",
         accessorKey: "agentFullName",
-        cell: (row) => <div>{String(row.getValue())}</div>,
+        cell: (row) => String(row.getValue()),
       },
 
       {
         id: "Agent Phone",
         accessorKey: "agentPhone",
-        cell: (row) => <div>{String(row.getValue())}</div>,
+        cell: (row) => String(row.getValue()),
       },
 
       {
         id: "Agent Email",
         accessorKey: "agentEmail",
-        cell: (row) => <div>{String(row.getValue())}</div>,
+        cell: (row) => String(row.getValue()),
       },
 
       {
         id: "Listing Date",
         accessorKey: "listingDate",
-        cell: (row) => <div>{String(row.getValue())}</div>,
+        cell: (row) => String(row.getValue()),
       },
 
       {
         id: "Listing Status",
         accessorKey: "listingStatus",
-        cell: (row) => <div>{String(row.getValue())}</div>,
+        cell: (row) => String(row.getValue()),
         meta: {
           filterVariant: "select",
           selectOptions: ["any", "active", "pending", "inactive"],
@@ -493,25 +492,25 @@ export function DataTable<TData extends ListingFull>({
       {
         id: "Mailing Address",
         accessorKey: "mailingAddress",
-        cell: (row) => <div>{String(row.getValue())}</div>,
+        cell: (row) => String(row.getValue()),
       },
 
       {
         id: "Mailing City",
         accessorKey: "mailingCity",
-        cell: (row) => <div>{String(row.getValue())}</div>,
+        cell: (row) => String(row.getValue()),
       },
 
       {
         id: "Mailing State/Region",
         accessorKey: "mailingStateRegion",
-        cell: (row) => <div>{String(row.getValue())}</div>,
+        cell: (row) => String(row.getValue()),
       },
 
       {
         id: "Mailing ZIP/Postal Code",
         accessorKey: "mailingZipPostalCode",
-        cell: (row) => <div>{String(row.getValue())}</div>,
+        cell: (row) => String(row.getValue()),
       },
     ];
     setColumns(initialColumns);
@@ -620,8 +619,31 @@ export function DataTable<TData extends ListingFull>({
     []
   );
 
+  const { rows } = table.getRowModel();
+
+  const parentRef = React.useRef<HTMLDivElement>(null);
+
+  const virtualizer = useVirtualizer({
+    count: rows.length,
+    getScrollElement: () => parentRef.current,
+    estimateSize: () => 35,
+    overscan: 10,
+  });
+
+  const items = virtualizer.getVirtualItems();
+
   return (
     <div className="p-4 flex flex-col h-screen">
+      {/* <pre>                    // info about the column resizing, for debugging
+        {JSON.stringify(
+          {
+            columnSizing: table.getState().columnSizing,
+            columnSizingInfo: table.getState().columnSizingInfo,
+          },
+          null,
+          2
+        )}
+      </pre> */}
       {/* Header Controls */}
       <div id="header" className="mb-2 flex justify-between">
         <div className="header-controls-left flex gap-2 items-center">
@@ -993,104 +1015,129 @@ export function DataTable<TData extends ListingFull>({
       </div>
 
       {/* Table */}
-      <ScrollArea id="scrollarea" className="rounded-md border">
+      <ScrollArea ref={parentRef} id="scrollarea" className="rounded-md border">
         <Table
-          className="relative"
-          {...{
-            style: {
-              width: table.getCenterTotalSize(),
-            },
+          className="relative table-fixed" // relative position for sticky header, table-fixed for truncating cell overflow content with ellipsis...
+          style={{
+            width: table.getCenterTotalSize(),
           }}
         >
-          <TableHeader className="sticky top-0 z-10 bg-gray-50">
+          <TableHeader className="sticky shadow-sm top-0 z-10 bg-gray-50">
             <TableRow isHeader>
               {table.getFlatHeaders().map((header) => (
                 <TableHead
                   key={header.id}
-                  className={`group relative ${
-                    header.column.getIsSorted()
+                  className={`group overflow-hidden relative ${
+                    header.column.getIsResizing()
                       ? "border-blue-500 border-2"
                       : ""
                   }`}
-                  onClick={header.column.getToggleSortingHandler()}
                   style={{
                     width: `${header.getSize()}px`,
                   }}
                 >
+                  {/* Content Container */}
                   <div
-                    {...{
-                      onDoubleClick: () => header.column.resetSize(),
-                      onMouseDown: header.getResizeHandler(),
-                      onTouchStart: header.getResizeHandler(),
-                      className: `absolute h-full t-0 w-[3px] resizer transition bg-blue-500/50 hover:bg-blue-500 ${table.options.columnResizeDirection} `,
-                      style: {
-                        transform:
-                          columnResizeMode === "onChange" &&
-                          header.column.getIsResizing()
-                            ? `translateX(${
-                                (table.options.columnResizeDirection === "rtl"
-                                  ? -1
-                                  : 1) *
-                                (table.getState().columnSizingInfo
-                                  .deltaOffset ?? 0)
-                              }px) translateY(-50%)`
-                            : "translateY(-50%)",
-                      },
-                    }}
-                  />
-                  <div
-                    className={`flex items-center gap-2 ${
+                    className={`flex items-center pr-[15px] ${
                       header.column.columnDef.meta?.isNumeric
                         ? "justify-end"
                         : ""
                     }`}
                   >
-                    {header.isPlaceholder
-                      ? null
-                      : flexRender(
-                          header.column.columnDef.header,
-                          header.getContext()
-                        )}
-                    {header.column.getCanSort() ? ( // check if the column can be sorted
-                      <div
-                        className={`transition-opacity duration-200 group-hover:opacity-100 ${
-                          header.column.getIsSorted() ? "" : "opacity-0"
-                        }`}
-                      >
-                        {header.column.getIsSorted() ? (
-                          header.column.getIsSorted() === "desc" ? (
-                            <ArrowDown size={16} />
-                          ) : (
-                            <ArrowUp size={16} />
-                          )
-                        ) : (
-                          <ArrowUp size={16} className="text-gray-400" />
-                        )}
+                    {/* Add right padding to prevent content from overlapping resizer */}
+                    <div
+                      className={`flex items-center gap-2 min-w-0 ${
+                        header.column.getCanSort() &&
+                        "cursor-pointer hover:bg-gray-50  rounded px-2 py-1"
+                      }`}
+                      onClick={
+                        header.column.getCanSort()
+                          ? header.column.getToggleSortingHandler()
+                          : undefined
+                      }
+                    >
+                      {/* Header Text with Truncation */}
+                      <div className="truncate flex-1 min-w-0">
+                        {header.isPlaceholder
+                          ? null
+                          : flexRender(
+                              header.column.columnDef.header,
+                              header.getContext()
+                            )}
                       </div>
-                    ) : null}
+                      {/* Sort Icon */}
+                      {header.column.getCanSort() && (
+                        <div
+                          className={`flex-shrink-0 transition-opacity duration-200 group-hover:opacity-100 ${
+                            header.column.getIsSorted() ? "" : "opacity-0"
+                          }`}
+                        >
+                          {header.column.getIsSorted() ? (
+                            header.column.getIsSorted() === "desc" ? (
+                              <ArrowDown size={16} />
+                            ) : (
+                              <ArrowUp size={16} />
+                            )
+                          ) : (
+                            <ArrowUp size={16} className="text-gray-400" />
+                          )}
+                        </div>
+                      )}
+                    </div>
+                    {/* Resizer - Positioned absolutely */}
+                    {header.column.getCanResize() && (
+                      <div
+                        onDoubleClick={() => header.column.resetSize()}
+                        onMouseDown={header.getResizeHandler()}
+                        onTouchStart={header.getResizeHandler()}
+                        className="absolute top-0 right-0 h-full w-[15px] cursor-col-resize z-10 flex items-center justify-center touch-none"
+                      >
+                        <div
+                          className={`w-[2px] h-2/3 bg-gray-500/50 ${
+                            header.column.getIsResizing() ? "hidden" : ""
+                          }`}
+                        />
+                      </div>
+                    )}
                   </div>
                 </TableHead>
               ))}
             </TableRow>
           </TableHeader>
           <TableBody>
-            {table.getRowModel().rows.map((row) => (
-              <TableRow
-                key={row.id}
-                data-state={row.getIsSelected() && "selected"}
-              >
-                {row.getVisibleCells().map((cell) => (
-                  <TableCell
-                    key={cell.id}
-                    className={
-                      cell.column.columnDef.meta?.isNumeric ? "text-right" : ""
-                    }
-                  >
-                    {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                  </TableCell>
-                ))}
-              </TableRow>
-            ))}
+            {items.map((virtualRow) => {
+              const row = rows[virtualRow.index];
+              return (
+                <TableRow
+                  key={row.id}
+                  data-state={row.getIsSelected() && "selected"}
+                >
+                  {row.getVisibleCells().map((cell) => (
+                    <TableCell
+                      key={cell.id}
+                      style={{
+                        width: `${cell.column.getSize()}px`,
+                        maxWidth: `${cell.column.getSize()}px`,
+                      }}
+                      className="border-b p-0 overflow-hidden"
+                    >
+                      <div
+                        className={`truncate min-w-0 p-2 ${
+                          cell.column.columnDef.meta?.isNumeric
+                            ? "text-right mr-[24px]"
+                            : "text-left"
+                        }`}
+                      >
+                        {flexRender(
+                          cell.column.columnDef.cell,
+                          cell.getContext()
+                        )}
+                      </div>
+                    </TableCell>
+                  ))}
+                </TableRow>
+              );
+            })}
           </TableBody>
         </Table>
         <ScrollBar orientation="horizontal" />

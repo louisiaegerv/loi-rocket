@@ -121,8 +121,6 @@ input[type=number]::-webkit-outer-spin-button {
 }
 
 .resizer {
-  height: 50%;
-  top: 50%;
   cursor: col-resize;
   user-select: none;
   touch-action: none;
