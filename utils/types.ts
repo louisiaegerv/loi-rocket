@@ -10,6 +10,7 @@ export const TagColors = [
   "blue",
   "indigo",
   "purple",
+  "none",
 ];
 
 type CashToSellerOptions = "Standard" | "Aggressive" | "Conservative";

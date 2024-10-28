@@ -69,6 +69,7 @@ import {
   X,
   Columns3,
   Settings,
+  CircleHelp,
 } from "lucide-react";
 
 import {
@@ -130,7 +131,7 @@ export function DataTable<TData extends ListingFull>({
     useState(false);
   const [filterSheetOpen, setFilterSheetOpen] = useState(false);
   const [newTag, setNewTag] = useState<TagType>({
-    color: "",
+    color: "none",
     value: "",
     type: "basic",
   });
@@ -209,7 +210,7 @@ export function DataTable<TData extends ListingFull>({
         accessorKey: "tags",
         header: "Tags",
         cell: (row) => (
-          <div className={`min-w-max text-left`}>
+          <ScrollArea className="pb-[5px]">
             {row.row.original.tags?.map((tag, index) => (
               <Badge variant="outline" key={index} className="mr-1">
                 {tag.value}
@@ -223,7 +224,8 @@ export function DataTable<TData extends ListingFull>({
                 </button>
               </Badge>
             ))}
-          </div>
+            <ScrollBar orientation="horizontal" />
+          </ScrollArea>
         ),
         meta: {
           filterVariant: "array",
@@ -481,7 +483,7 @@ export function DataTable<TData extends ListingFull>({
           filterVariant: "select",
           selectOptions: ["any", "active", "pending", "inactive"],
         },
-        filterFn: "equals",
+        filterFn: "equalsString",
       },
 
       {
@@ -590,7 +592,7 @@ export function DataTable<TData extends ListingFull>({
       );
 
       setNewTag({
-        color: "",
+        color: "none",
         value: "",
         type: "basic",
       });
@@ -658,9 +660,9 @@ export function DataTable<TData extends ListingFull>({
             </SheetTrigger>
             <SheetContent className="md:max-w-sm">
               <SheetHeader>
-                <SheetTitle>Save Tag</SheetTitle>
+                <SheetTitle>Add Tag</SheetTitle>
                 <SheetDescription>
-                  Save a custom tag for the{" "}
+                  Add a custom tag for the{" "}
                   {table.getFilteredSelectedRowModel().flatRows.length}{" "}
                   currently selected rows.
                 </SheetDescription>
@@ -673,15 +675,6 @@ export function DataTable<TData extends ListingFull>({
                 >
                   Tag Name
                 </Label>
-                {/* <Input
-                  type="text"
-                  id="tagName"
-                  value={newTag.value}
-                  onChange={(e) =>
-                    setNewTag({ ...newTag, value: e.target.value })
-                  }
-                  placeholder="Enter new tag"
-                /> */}
                 <DebouncedInput
                   type="text"
                   id="tagName"
@@ -692,7 +685,7 @@ export function DataTable<TData extends ListingFull>({
                   }}
                   placeholder="Enter new tag"
                 />
-                <Label
+                {/* <Label
                   htmlFor="tagColor"
                   className="block mb-2 mt-3 font-medium font-bold"
                 >
@@ -725,7 +718,7 @@ export function DataTable<TData extends ListingFull>({
                       </SelectItem>
                     ))}
                   </SelectContent>
-                </Select>
+                </Select> */}
 
                 <Button
                   onClick={addTagToSelected}
@@ -733,7 +726,7 @@ export function DataTable<TData extends ListingFull>({
                   disabled={!newTag.value || !newTag.color}
                   // variant="outline"
                 >
-                  Add Tag
+                  Add
                 </Button>
               </div>
             </SheetContent>
@@ -794,9 +787,20 @@ export function DataTable<TData extends ListingFull>({
           {/* Filter Sidebar */}
           <Sheet open={filterSheetOpen} onOpenChange={setFilterSheetOpen}>
             <SheetTrigger asChild>
-              <Button variant="outline" className="px-4 py-2 rounded">
+              <Button
+                variant={`${
+                  table.getState().columnFilters.length ? "" : "outline"
+                }`}
+                className={`px-4 py-2 rounded ${
+                  table.getState().columnFilters.length && ""
+                }`}
+              >
                 <ListFilter className="inline-block" />
-                <div className="hidden ml-2 sm:inline-block">Filters</div>
+                <span className="ml-2 mr-2 hidden sm:inline-block">
+                  Filters
+                </span>
+                {table.getState().columnFilters.length > 0 &&
+                  `(${table.getState().columnFilters.length})`}
               </Button>
             </SheetTrigger>
             <SheetContent className="flex flex-col">
@@ -1002,6 +1006,15 @@ export function DataTable<TData extends ListingFull>({
             <SheetTrigger asChild>
               <Button variant="outline">
                 <Settings />
+              </Button>
+            </SheetTrigger>
+            <SheetContent></SheetContent>
+          </Sheet>
+          {/* Help Button */}
+          <Sheet>
+            <SheetTrigger asChild>
+              <Button variant="outline">
+                <CircleHelp />
               </Button>
             </SheetTrigger>
             <SheetContent></SheetContent>
